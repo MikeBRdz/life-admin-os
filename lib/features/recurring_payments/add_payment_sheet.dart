@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:nexus/core/db/database_helper.dart';
+import 'package:nexus/core/models/payment.dart';
+import 'package:nexus/core/utils/icon_registry.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+class AddPaymentSheet extends StatefulWidget {
+  const AddPaymentSheet({super.key});
+
+  @override
+  State<AddPaymentSheet> createState() => _AddPaymentSheetState();
+}
+
+class _AddPaymentSheetState extends State<AddPaymentSheet> {
+  final _titleController = TextEditingController();
+  final _amountController = TextEditingController();
+
+  DateTime _selectedDate = DateTime.now();
+  String _selectedFrequency = 'Mensual';
+  bool _isUrgent = false;
+
+  final List<String> _frequencies = [
+    'Diario',
+    'Semanal',
+    'Quincenal',
+    'Mensual',
+    'Anual',
+  ];
+
+  late String _selectedIconKey = appIcons.keys.first;
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _savePayment() async {
+    if (_titleController.text.isEmpty || _amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor llena los campos principales')),
+      );
+      return;
+    }
+
+    final payment = Payment(
+      title: _titleController.text,
+      amount: double.tryParse(_amountController.text) ?? 0.0,
+      nextPaymentDate: _selectedDate,
+      frequency: _selectedFrequency,
+      isUrgent: _isUrgent,
+      iconKey: _selectedIconKey,
+    );
+
+    await DatabaseHelper.instance.insertPayment(payment);
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24.0,
+        right: 24.0,
+        top: 24.0,
+        bottom: bottomInset + 24.0,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Nuevo Gasto Fijo',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+
+          SizedBox(
+            height: 50,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: appIcons.length,
+              itemBuilder: (context, index) {
+                String key = appIcons.keys.elementAt(index);
+                final isSelected = _selectedIconKey == key;
+
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedIconKey = key),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Colors.grey.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            )
+                          : null,
+                    ),
+                    child: buildAppIcon(
+                      key,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey,
+                      size: 20,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _titleController,
+            decoration: const InputDecoration(
+              labelText: 'Nombre del gasto',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Monto a pagar',
+              prefixIcon: Icon(Icons.attach_money),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedFrequency,
+                  decoration: const InputDecoration(
+                    labelText: 'Se repite',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _frequencies.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedFrequency = newValue!;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 1,
+                child: InkWell(
+                  onTap: _pickDate,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Próximo pago',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Text(
+                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          SwitchListTile(
+            title: const Text('Marcar como alta prioridad'),
+            value: _isUrgent,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (value) => setState(() => _isUrgent = value),
+          ),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton(
+              onPressed: _savePayment,
+              child: const Text(
+                'Guardar Gasto',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
