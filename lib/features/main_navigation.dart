@@ -47,17 +47,17 @@ class _MainNavigationState extends State<MainNavigation> {
           NavigationDestination(
             icon: Icon(Icons.local_shipping_outlined),
             selectedIcon: Icon(Icons.local_shipping),
-            label: 'Paquetes',
+            label: 'Packages',
           ),
           NavigationDestination(
             icon: Icon(Icons.autorenew_outlined),
             selectedIcon: Icon(Icons.autorenew),
-            label: 'Pagos',
+            label: 'Payments',
           ),
           NavigationDestination(
             icon: Icon(Icons.lock_outline),
             selectedIcon: Icon(Icons.lock),
-            label: 'Bóveda',
+            label: 'Vault',
           ),
         ],
       ),

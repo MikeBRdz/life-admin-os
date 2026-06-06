@@ -18,15 +18,15 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   final _amountController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  String _selectedFrequency = 'Mensual';
+  String _selectedFrequency = 'Monthly';
   bool _isUrgent = false;
 
   final List<String> _frequencies = [
-    'Diario',
-    'Semanal',
-    'Quincenal',
-    'Mensual',
-    'Anual',
+    'Daily',
+    'Weekly',
+    'Biweekly',
+    'Monthly',
+    'Yearly',
   ];
 
   late String _selectedIconKey = appIcons.keys.first;
@@ -64,7 +64,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   Future<void> _savePayment() async {
     if (_titleController.text.isEmpty || _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor llena los campos principales')),
+        const SnackBar(content: Text('Please fill in the main fields')),
       );
       return;
     }
@@ -106,9 +106,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.paymentToEdit != null
-                ? 'Editar Gasto Fijo'
-                : 'Nuevo Gasto Fijo',
+            widget.paymentToEdit != null ? 'Edit Expense' : 'New Expense',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
@@ -157,7 +155,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
           TextField(
             controller: _titleController,
             decoration: const InputDecoration(
-              labelText: 'Nombre del gasto',
+              labelText: 'Expense Name',
               border: OutlineInputBorder(),
             ),
           ),
@@ -167,7 +165,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
-              labelText: 'Monto a pagar',
+              labelText: 'Amount to Pay',
               prefixIcon: Icon(Icons.attach_money),
               border: OutlineInputBorder(),
             ),
@@ -181,7 +179,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
                 child: DropdownButtonFormField<String>(
                   value: _selectedFrequency,
                   decoration: const InputDecoration(
-                    labelText: 'Se repite',
+                    labelText: 'Repeats',
                     border: OutlineInputBorder(),
                   ),
                   items: _frequencies.map((String value) {
@@ -204,7 +202,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
                   onTap: _pickDate,
                   child: InputDecorator(
                     decoration: const InputDecoration(
-                      labelText: 'Próximo pago',
+                      labelText: 'Next Payment Date',
                       border: OutlineInputBorder(),
                     ),
                     child: Text(
@@ -218,7 +216,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
           const SizedBox(height: 16),
 
           SwitchListTile(
-            title: const Text('Marcar como alta prioridad'),
+            title: const Text('Mark as High Priority'),
             value: _isUrgent,
             contentPadding: EdgeInsets.zero,
             onChanged: (value) => setState(() => _isUrgent = value),
@@ -232,8 +230,8 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
               onPressed: _savePayment,
               child: Text(
                 widget.paymentToEdit != null
-                    ? 'Actualizar Gasto'
-                    : 'Guardar Gasto',
+                    ? 'Update Expense'
+                    : 'Save Expense',
                 style: TextStyle(fontSize: 16),
               ),
             ),

@@ -39,9 +39,7 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Error al cargar datos: ${snapshot.error}'),
-            );
+            return Center(child: Text('Error loading data: ${snapshot.error}'));
           }
 
           final payments = snapshot.data ?? [];
@@ -49,7 +47,7 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
           if (payments.isEmpty) {
             return const Center(
               child: Text(
-                'No hay gastos registrados.\nToca el botón + para empezar.',
+                'There are no expenses recorded.\nTap the + button to get started.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
@@ -83,7 +81,7 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
           }
         },
         icon: const Icon(Icons.add),
-        label: const Text('Nuevo Gasto'),
+        label: const Text('New Expense'),
       ),
     );
   }
@@ -111,7 +109,7 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${payment.title} eliminado'),
+              content: Text('${payment.title} deleted'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -198,7 +196,7 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
                                 ),
                               ),
                               child: const Text(
-                                'Prioritario',
+                                'Priority',
                                 style: TextStyle(
                                   color: Colors.red,
                                   fontSize: 10,

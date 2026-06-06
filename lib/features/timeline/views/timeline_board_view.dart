@@ -62,9 +62,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error al cargar datos: ${snapshot.error}'),
-          );
+          return Center(child: Text('Error loading data: ${snapshot.error}'));
         }
 
         final allPayments = snapshot.data ?? [];
@@ -78,9 +76,9 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
           physics: const BouncingScrollPhysics(),
           children: [
-            _buildKanbanColumn('Esta Semana', thisWeek, columnWidth),
-            _buildKanbanColumn('Este Mes', thisMonth, columnWidth),
-            _buildKanbanColumn('Próximos', next, columnWidth),
+            _buildKanbanColumn('This Week', thisWeek, columnWidth),
+            _buildKanbanColumn('This Month', thisMonth, columnWidth),
+            _buildKanbanColumn('Next', next, columnWidth),
           ],
         );
       },
@@ -142,7 +140,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
             child: payments.isEmpty
                 ? const Center(
                     child: Text(
-                      'Sin pendientes',
+                      'No pending items',
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
@@ -220,10 +218,10 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                       children: [
                         Text(
                           daysLeft == 0
-                              ? 'Paga hoy'
+                              ? 'Pay today'
                               : (daysLeft < 0
-                                    ? 'Atrasado'
-                                    : 'En $daysLeft días'),
+                                    ? 'Overdue'
+                                    : 'In $daysLeft days'),
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -244,7 +242,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                               ),
                             ),
                             child: const Text(
-                              'Prioritario',
+                              'Priority',
                               style: TextStyle(
                                 color: Colors.red,
                                 fontSize: 9,

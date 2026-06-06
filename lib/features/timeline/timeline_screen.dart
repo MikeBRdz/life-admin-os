@@ -12,7 +12,7 @@ class TimelineScreen extends StatefulWidget {
 }
 
 class _TimelineScreenState extends State<TimelineScreen> {
-  TimelineViewType _currentView = TimelineViewType.board;
+  TimelineViewType _currentView = TimelineViewType.feed;
 
   Widget _buildCurrentView() {
     switch (_currentView) {
@@ -42,12 +42,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
               child: SegmentedButton<TimelineViewType>(
                 segments: const [
                   ButtonSegment(
-                    value: TimelineViewType.board,
-                    icon: Icon(Icons.dashboard_outlined),
-                  ),
-                  ButtonSegment(
                     value: TimelineViewType.feed,
                     icon: Icon(Icons.view_agenda_outlined),
+                  ),
+                  ButtonSegment(
+                    value: TimelineViewType.board,
+                    icon: Icon(Icons.dashboard_outlined),
                   ),
                   ButtonSegment(
                     value: TimelineViewType.calendar,
