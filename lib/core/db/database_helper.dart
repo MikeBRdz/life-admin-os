@@ -46,4 +46,23 @@ class DatabaseHelper {
     final result = await db.query('payments', orderBy: 'nextPaymentDate ASC');
     return result.map((json) => Payment.fromMap(json)).toList();
   }
+
+  Future<int> updatePayment(Payment payment) async {
+    final db = await instance.database;
+    return await db.update(
+      'payments',
+      payment.toMap(),
+      where: 'id = ?',
+      whereArgs: [payment.id],
+    );
+  }
+
+  Future<int> deletePayment(int id) async {
+    final db = await instance.database;
+    return await db.delete(
+      'payments',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

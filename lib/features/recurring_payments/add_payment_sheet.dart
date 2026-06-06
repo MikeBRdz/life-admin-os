@@ -5,7 +5,9 @@ import 'package:nexus/core/utils/icon_registry.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class AddPaymentSheet extends StatefulWidget {
-  const AddPaymentSheet({super.key});
+  final Payment? paymentToEdit;
+
+  const AddPaymentSheet({super.key, this.paymentToEdit});
 
   @override
   State<AddPaymentSheet> createState() => _AddPaymentSheetState();
@@ -28,6 +30,22 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   ];
 
   late String _selectedIconKey = appIcons.keys.first;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.paymentToEdit != null) {
+      final p = widget.paymentToEdit!;
+
+      _titleController.text = p.title;
+      _amountController.text = p.amount.toString();
+      _selectedDate = p.nextPaymentDate;
+      _selectedFrequency = p.frequency;
+      _isUrgent = p.isUrgent;
+      _selectedIconKey = p.iconKey;
+    }
+  }
 
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
@@ -52,6 +70,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
     }
 
     final payment = Payment(
+      id: widget.paymentToEdit?.id,
       title: _titleController.text,
       amount: double.tryParse(_amountController.text) ?? 0.0,
       nextPaymentDate: _selectedDate,
@@ -60,7 +79,11 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
       iconKey: _selectedIconKey,
     );
 
-    await DatabaseHelper.instance.insertPayment(payment);
+    if (widget.paymentToEdit != null) {
+      await DatabaseHelper.instance.updatePayment(payment);
+    } else {
+      await DatabaseHelper.instance.insertPayment(payment);
+    }
 
     if (mounted) {
       Navigator.pop(context, true);
@@ -82,8 +105,10 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Nuevo Gasto Fijo',
+          Text(
+            widget.paymentToEdit != null
+                ? 'Editar Gasto Fijo'
+                : 'Nuevo Gasto Fijo',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
@@ -205,8 +230,10 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
             height: 50,
             child: FilledButton(
               onPressed: _savePayment,
-              child: const Text(
-                'Guardar Gasto',
+              child: Text(
+                widget.paymentToEdit != null
+                    ? 'Actualizar Gasto'
+                    : 'Guardar Gasto',
                 style: TextStyle(fontSize: 16),
               ),
             ),

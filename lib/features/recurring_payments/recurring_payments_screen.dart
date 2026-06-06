@@ -92,54 +92,107 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
     final dateFormatted =
         '${payment.nextPaymentDate.day}/${payment.nextPaymentDate.month}/${payment.nextPaymentDate.year}';
 
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: payment.isUrgent
-                    ? Colors.red.withOpacity(0.1)
-                    : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: buildAppIcon(
-                payment.iconKey,
-                color: payment.isUrgent
-                    ? Colors.red
-                    : Theme.of(context).colorScheme.primary,
-              ),
+    return Dismissible(
+      key: Key(payment.id.toString()),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20.0),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 28),
+      ),
+
+      onDismissed: (direction) async {
+        await DatabaseHelper.instance.deletePayment(payment.id!);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${payment.title} eliminado'),
+              behavior: SnackBarBehavior.floating,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    payment.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+          );
+        }
+
+        _loadPayments();
+      },
+
+      child: GestureDetector(
+        onTap: () async {
+          final result = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) => AddPaymentSheet(paymentToEdit: payment),
+          );
+
+          if (result == true) {
+            _loadPayments();
+          }
+        },
+        child: Card(
+          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: payment.isUrgent
+                        ? Colors.red.withOpacity(0.1)
+                        : Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$dateFormatted • ${payment.frequency}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  child: buildAppIcon(
+                    payment.iconKey,
+                    color: payment.isUrgent
+                        ? Colors.red
+                        : Theme.of(context).colorScheme.primary,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        payment.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$dateFormatted • ${payment.frequency}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '\$${payment.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              '\$${payment.amount.toStringAsFixed(2)}', // Asegura 2 decimales
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
+          ),
         ),
       ),
     );
