@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nexus/features/recurring_payments/recurring_payments_screen.dart';
+import 'package:nexus/features/timeline/timeline_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -12,7 +13,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const Center(child: Text('Feed del Futuro (Timeline)')),
+    const TimelineScreen(),
     const Center(child: Text('Módulo: Paquetes')),
     const RecurringPaymentsScreen(),
     const Center(child: Text('Módulo: Bóveda (Docs)')),

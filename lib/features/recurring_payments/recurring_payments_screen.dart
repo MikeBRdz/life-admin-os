@@ -149,21 +149,16 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: payment.isUrgent
-                        ? Colors.red.withOpacity(0.1)
-                        : Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: buildAppIcon(
                     payment.iconKey,
-                    color: payment.isUrgent
-                        ? Colors.red
-                        : Theme.of(context).colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 16),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,9 +171,42 @@ class _RecurringPaymentsScreenState extends State<RecurringPaymentsScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '$dateFormatted • ${payment.frequency}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 4.0,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            '$dateFormatted • ${payment.frequency}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (payment.isUrgent)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: Colors.red.withOpacity(0.5),
+                                ),
+                              ),
+                              child: const Text(
+                                'Prioritario',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
