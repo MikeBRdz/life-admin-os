@@ -31,6 +31,7 @@ class DatabaseHelper {
         nextPaymentDate TEXT NOT NULL, 
         frequency TEXT NOT NULL,
         isUrgent INTEGER NOT NULL,
+        isAutoPay INTEGER NOT NULL,
         iconKey TEXT NOT NULL
       )
     ''');
@@ -59,10 +60,6 @@ class DatabaseHelper {
 
   Future<int> deletePayment(int id) async {
     final db = await instance.database;
-    return await db.delete(
-      'payments',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('payments', where: 'id = ?', whereArgs: [id]);
   }
 }
