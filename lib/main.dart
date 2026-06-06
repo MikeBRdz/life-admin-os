@@ -40,7 +40,7 @@ class NexusApp extends StatelessWidget {
       valueListenable: themeModeNotifier,
       builder: (context, currentMode, child) {
         return MaterialApp(
-          title: 'Nexus',
+          title: "Mike's Admin",
           debugShowCheckedModeBanner: false,
 
           themeMode: currentMode,

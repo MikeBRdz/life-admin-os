@@ -4,8 +4,9 @@ class Payment {
   final double amount;
   final DateTime nextPaymentDate;
   final String frequency;
-  final bool isUrgent;
   final String iconKey;
+  final bool isUrgent;
+  final bool isAutoPay;
 
   Payment({
     this.id,
@@ -13,8 +14,9 @@ class Payment {
     required this.amount,
     required this.nextPaymentDate,
     required this.frequency,
-    required this.isUrgent,
     required this.iconKey,
+    required this.isUrgent,
+    required this.isAutoPay,
   });
 
   Map<String, dynamic> toMap() {
@@ -24,8 +26,9 @@ class Payment {
       'amount': amount,
       'nextPaymentDate': nextPaymentDate.toIso8601String(),
       'frequency': frequency,
-      'isUrgent': isUrgent ? 1 : 0,
       'iconKey': iconKey,
+      'isUrgent': isUrgent ? 1 : 0,
+      'isAutoPay': isAutoPay ? 1 : 0,
     };
   }
 
@@ -36,8 +39,9 @@ class Payment {
       amount: map['amount'],
       nextPaymentDate: DateTime.parse(map['nextPaymentDate']),
       frequency: map['frequency'],
-      isUrgent: map['isUrgent'] == 1,
       iconKey: map['iconKey'],
+      isUrgent: map['isUrgent'] == 1,
+      isAutoPay: map['isAutoPay'] == 1,
     );
   }
 }

@@ -20,13 +20,14 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   DateTime _selectedDate = DateTime.now();
   String _selectedFrequency = 'Monthly';
   bool _isUrgent = false;
+  bool _isAutoPay = true;
 
   final List<String> _frequencies = [
     'Daily',
     'Weekly',
-    'Biweekly',
+    'Bi-weekly',
     'Monthly',
-    'Yearly',
+    'Annually',
   ];
 
   late String _selectedIconKey = appIcons.keys.first;
@@ -43,6 +44,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
       _selectedDate = p.nextPaymentDate;
       _selectedFrequency = p.frequency;
       _isUrgent = p.isUrgent;
+      _isAutoPay = p.isAutoPay;
       _selectedIconKey = p.iconKey;
     }
   }
@@ -76,6 +78,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
       nextPaymentDate: _selectedDate,
       frequency: _selectedFrequency,
       isUrgent: _isUrgent,
+      isAutoPay: _isAutoPay,
       iconKey: _selectedIconKey,
     );
 
@@ -216,12 +219,20 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
           const SizedBox(height: 16),
 
           SwitchListTile(
+            title: const Text('Mark as Auto-Pay'),
+            subtitle: const Text('App will auto-rollover dates.'),
+            value: _isAutoPay,
+            contentPadding: EdgeInsets.zero,
+            onChanged: (value) => setState(() => _isAutoPay = value),
+          ),
+
+          SwitchListTile(
             title: const Text('Mark as High Priority'),
             value: _isUrgent,
             contentPadding: EdgeInsets.zero,
             onChanged: (value) => setState(() => _isUrgent = value),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
           SizedBox(
             width: double.infinity,
