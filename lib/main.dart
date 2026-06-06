@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'features/main_navigation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -20,8 +22,11 @@ final ThemeData darkTheme = ThemeData(
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   runApp(const NexusApp());
 }
