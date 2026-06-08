@@ -3,6 +3,7 @@ import 'package:nexus/core/db/database_helper.dart';
 import 'package:nexus/core/models/payment.dart';
 import 'package:nexus/core/utils/icon_registry.dart';
 import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
+import 'package:nexus/core/utils/payment_engine.dart';
 
 class TimelineBoardView extends StatefulWidget {
   const TimelineBoardView({super.key});
@@ -66,10 +67,13 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
         }
 
         final allPayments = snapshot.data ?? [];
+        final projectedPayments = PaymentEngine.generateProjectedTimeline(
+          allPayments,
+        );
 
-        final thisWeek = _filterPaymentsByRange(allPayments, 0, 7);
-        final thisMonth = _filterPaymentsByRange(allPayments, 8, 30);
-        final next = _filterPaymentsByRange(allPayments, 31, -1);
+        final thisWeek = _filterPaymentsByRange(projectedPayments, 0, 7);
+        final thisMonth = _filterPaymentsByRange(projectedPayments, 8, 30);
+        final next = _filterPaymentsByRange(projectedPayments, 31, -1);
 
         return ListView(
           scrollDirection: Axis.horizontal,
@@ -220,10 +224,16 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                           daysLeft == 0
                               ? 'Pay today'
                               : (daysLeft < 0
-                                    ? 'Overdue'
-                                    : 'In $daysLeft days'),
+                                    ? (payment.isAutoPay
+                                          ? 'Auto-paid ✓'
+                                          : 'Overdue')
+                                    : 'In $daysLeft days | ${PaymentEngine.getMonthName(payment.nextPaymentDate.month)} ${payment.nextPaymentDate.day}'),
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: daysLeft < 0
+                                ? (payment.isAutoPay
+                                      ? Colors.green
+                                      : Colors.red)
+                                : Colors.grey[600],
                             fontSize: 12,
                           ),
                         ),

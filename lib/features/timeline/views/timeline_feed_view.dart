@@ -3,6 +3,8 @@ import 'package:nexus/core/db/database_helper.dart';
 import 'package:nexus/core/models/payment.dart';
 import 'package:nexus/core/utils/icon_registry.dart';
 import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
+import 'package:nexus/core/utils/payment_engine.dart';
+import 'package:nexus/core/utils/payment_ui_helpers.dart';
 
 class TimelineFeedView extends StatefulWidget {
   const TimelineFeedView({super.key});
@@ -26,31 +28,15 @@ class _TimelineFeedViewState extends State<TimelineFeedView> {
     });
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
-  }
-
   Map<String, List<Payment>> _groupPaymentsByMonth(List<Payment> all) {
     all.sort((a, b) => a.nextPaymentDate.compareTo(b.nextPaymentDate));
 
     final Map<String, List<Payment>> grouped = {};
 
     for (var payment in all) {
-      final monthName = _getMonthName(payment.nextPaymentDate.month);
+      final monthName = PaymentEngine.getMonthName(
+        payment.nextPaymentDate.month,
+      );
       final year = payment.nextPaymentDate.year;
       final key = '$monthName $year'; // e.g., "June 2026"
 
@@ -84,7 +70,11 @@ class _TimelineFeedViewState extends State<TimelineFeedView> {
           );
         }
 
-        final groupedPayments = _groupPaymentsByMonth(allPayments);
+        final projectedPayments = PaymentEngine.generateProjectedTimeline(
+          allPayments,
+        );
+
+        final groupedPayments = _groupPaymentsByMonth(projectedPayments);
         final sectionKeys = groupedPayments.keys.toList();
 
         return ListView.builder(
@@ -156,7 +146,7 @@ class _TimelineFeedViewState extends State<TimelineFeedView> {
     final daysLeft = paymentDate.difference(today).inDays;
 
     final dateFormatted =
-        '${_getMonthName(payment.nextPaymentDate.month)} ${payment.nextPaymentDate.day}';
+        '${PaymentEngine.getMonthName(payment.nextPaymentDate.month)} ${payment.nextPaymentDate.day}';
 
     return GestureDetector(
       onTap: () async {
@@ -211,10 +201,16 @@ class _TimelineFeedViewState extends State<TimelineFeedView> {
                           // English dynamic labels
                           daysLeft == 0
                               ? 'Today'
-                              : (daysLeft < 0 ? 'Overdue' : dateFormatted),
+                              : (daysLeft < 0
+                                    ? (payment.isAutoPay
+                                          ? 'Auto-paid ✓'
+                                          : 'Overdue')
+                                    : dateFormatted),
                           style: TextStyle(
-                            color: daysLeft <= 0
-                                ? Colors.red
+                            color: daysLeft < 0
+                                ? (payment.isAutoPay
+                                      ? Colors.green
+                                      : Colors.red)
                                 : Colors.grey[600],
                             fontSize: 13,
                             fontWeight: daysLeft <= 0
@@ -257,6 +253,29 @@ class _TimelineFeedViewState extends State<TimelineFeedView> {
                   fontSize: 16,
                 ),
               ),
+
+              const SizedBox(width: 8),
+              payment.isAutoPay
+                  ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Icon(
+                        Icons.autorenew,
+                        color: Colors.grey,
+                        size: 24,
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                        size: 28,
+                      ),
+                      onPressed: () => PaymentUIHelpers.markAsPaid(
+                        context,
+                        payment,
+                        _loadPayments,
+                      ),
+                    ),
             ],
           ),
         ),

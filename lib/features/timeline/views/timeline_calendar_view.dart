@@ -3,6 +3,8 @@ import 'package:nexus/core/db/database_helper.dart';
 import 'package:nexus/core/models/payment.dart';
 import 'package:nexus/core/utils/icon_registry.dart';
 import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
+import 'package:nexus/core/utils/payment_engine.dart';
+import 'package:nexus/core/utils/payment_ui_helpers.dart';
 
 class TimelineCalendarView extends StatefulWidget {
   const TimelineCalendarView({super.key});
@@ -50,24 +52,6 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
     return grouped;
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
-  }
-
   void _changeMonth(int offset) {
     setState(() {
       _focusedMonth = DateTime(
@@ -88,7 +72,10 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
         }
 
         final allPayments = snapshot.data ?? [];
-        final groupedPayments = _groupPaymentsByDate(allPayments);
+        final projectedPayments = PaymentEngine.generateProjectedTimeline(
+          allPayments,
+        );
+        final groupedPayments = _groupPaymentsByDate(projectedPayments);
 
         final selectedDayPayments = groupedPayments[_selectedDate] ?? [];
 
@@ -118,7 +105,7 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
             onPressed: () => _changeMonth(-1),
           ),
           Text(
-            '${_getMonthName(_focusedMonth.month)} ${_focusedMonth.year}',
+            '${PaymentEngine.getMonthName(_focusedMonth.month)} ${_focusedMonth.year}',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           IconButton(
@@ -352,6 +339,29 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
                   fontSize: 16,
                 ),
               ),
+
+              const SizedBox(width: 8),
+              payment.isAutoPay
+                  ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Icon(
+                        Icons.autorenew,
+                        color: Colors.grey,
+                        size: 24,
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                        size: 28,
+                      ),
+                      onPressed: () => PaymentUIHelpers.markAsPaid(
+                        context,
+                        payment,
+                        _loadPayments,
+                      ),
+                    ),
             ],
           ),
         ),

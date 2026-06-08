@@ -25,7 +25,6 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   final List<String> _frequencies = [
     'Daily',
     'Weekly',
-    'Bi-weekly',
     'Monthly',
     'Annually',
   ];
