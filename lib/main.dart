@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'features/main_navigation.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:nexus/features/security/lock_screen_view.dart';
 
 final ValueNotifier<ThemeMode> themeModeNotifier = ValueNotifier(
   ThemeMode.dark,
@@ -22,11 +20,6 @@ final ThemeData darkTheme = ThemeData(
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
 
   runApp(const NexusApp());
 }
@@ -48,7 +41,7 @@ class NexusApp extends StatelessWidget {
           theme: lightTheme,
           darkTheme: darkTheme,
 
-          home: const MainNavigation(),
+          home: const LockScreenView(),
         );
       },
     );

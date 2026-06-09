@@ -1,6 +1,7 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/payment.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:nexus/core/models/payment.dart';
+import 'package:nexus/core/models/document.dart';
 
 class DatabaseHelper {
   // Patrón Singleton para evitar múltiples conexiones abiertas en la memoria
@@ -9,17 +10,30 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
-  Future<Database> get database async {
+  Future<Database> databaseWithPassword(String password) async {
     if (_database != null) return _database!;
-    _database = await _initDB('life_admin.db');
+
+    _database = await _initDB(password);
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    throw Exception(
+      'Database has not been initialized with a password yet. Unlock the app first.',
+    );
+  }
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+  Future<Database> _initDB(String password) async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'mikes_admin_secure.db');
+
+    return await openDatabase(
+      path,
+      version: 1,
+      password: password,
+      onCreate: _createDB,
+    );
   }
 
   Future _createDB(Database db, int version) async {
@@ -35,21 +49,36 @@ class DatabaseHelper {
         iconKey TEXT NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        documentType TEXT NOT NULL,
+        encryptedFilePath TEXT,
+        expirationDate TEXT,
+        notes TEXT
+      )
+    ''');
   }
 
   Future<int> insertPayment(Payment payment) async {
-    final db = await instance.database;
-    return await db.insert('payments', payment.toMap());
+    final db = await database;
+    return await db.insert(
+      'payments',
+      payment.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Payment>> getPayments() async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query('payments', orderBy: 'nextPaymentDate ASC');
     return result.map((json) => Payment.fromMap(json)).toList();
   }
 
   Future<int> updatePayment(Payment payment) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.update(
       'payments',
       payment.toMap(),
@@ -59,7 +88,26 @@ class DatabaseHelper {
   }
 
   Future<int> deletePayment(int id) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.delete('payments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> insertDocument(Document doc) async {
+    final db = await database;
+    return await db.insert('documents', doc.toMap());
+  }
+
+  Future<List<Document>> getDocuments() async {
+    final db = await database;
+    final maps = await db.query('documents');
+    return maps.map((map) => Document.fromMap(map)).toList();
+  }
+
+  Future close() async {
+    final db = _database;
+    if (db != null) {
+      await db.close();
+      _database = null;
+    }
   }
 }
