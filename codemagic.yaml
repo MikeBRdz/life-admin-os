@@ -6,10 +6,18 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Install CocoaPods
+      - name: Locate and Install CocoaPods
         script: |
-          cd ios
-          pod install
+          # Buscamos dónde está el Podfile
+          if [ -f "ios/Podfile" ]; then
+            cd ios
+            pod install
+          else
+            echo "Podfile no encontrado en ios/. Intentando regenerar..."
+            flutter create .
+            cd ios
+            pod install
+          fi
       - name: Flutter build ios
         script: |
           flutter build ios --release --no-codesign --workspace ios/Runner.xcworkspace --scheme Runner
