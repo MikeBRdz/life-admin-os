@@ -3,11 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:nexus/core/db/database_helper.dart';
 import 'package:nexus/core/models/document.dart';
+import 'package:nexus/core/models/category.dart';
 import 'package:nexus/core/services/file_encryption_service.dart';
 
 class AddDocumentSheet extends StatefulWidget {
   final VoidCallback onDocumentAdded;
-  const AddDocumentSheet({super.key, required this.onDocumentAdded});
+  final Document? documentToEdit;
+
+  const AddDocumentSheet({
+    super.key,
+    required this.onDocumentAdded,
+    this.documentToEdit,
+  });
 
   @override
   State<AddDocumentSheet> createState() => _AddDocumentSheetState();
@@ -18,12 +25,44 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
 
-  String _selectedType = 'ID';
   DateTime? _expirationDate;
   File? _selectedFile;
   bool _isSaving = false;
+  String? _existingEncryptedPath;
 
-  final List<String> _types = ['ID', 'Passport', 'Visa', 'Other'];
+  List<Category> _documentCategories = [];
+  int? _selectedCategoryId;
+  bool _isLoadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+
+    if (widget.documentToEdit != null) {
+      final d = widget.documentToEdit!;
+      _titleController.text = d.title;
+      if (d.notes != null) _notesController.text = d.notes!;
+      _expirationDate = d.expirationDate;
+      _existingEncryptedPath = d.encryptedFilePath;
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    final categories = await DatabaseHelper.instance.getCategoriesByModule(
+      'document',
+    );
+    setState(() {
+      _documentCategories = categories;
+      _isLoadingCategories = false;
+
+      if (widget.documentToEdit != null) {
+        _selectedCategoryId = widget.documentToEdit!.categoryId;
+      } else if (categories.isNotEmpty) {
+        _selectedCategoryId = categories.first.id;
+      }
+    });
+  }
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -41,7 +80,8 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate:
+          _expirationDate ?? DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
@@ -51,39 +91,44 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
   }
 
   void _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _selectedCategoryId == null)
+      return;
+
     setState(() => _isSaving = true);
 
     try {
-      String? encryptedPath;
+      String? finalEncryptedPath = _existingEncryptedPath;
 
       if (_selectedFile != null) {
-        encryptedPath = await FileEncryptionService.encryptAndSaveFile(
+        finalEncryptedPath = await FileEncryptionService.encryptAndSaveFile(
           _selectedFile!,
         );
       }
 
-      final newDoc = Document(
+      final doc = Document(
+        id: widget.documentToEdit?.id,
         title: _titleController.text.trim(),
-        documentType: _selectedType,
-        encryptedFilePath: encryptedPath,
+        categoryId: _selectedCategoryId!,
+        encryptedFilePath: finalEncryptedPath,
         expirationDate: _expirationDate,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
       );
 
-      await DatabaseHelper.instance.insertDocument(newDoc);
+      if (widget.documentToEdit != null) {
+        await DatabaseHelper.instance.updateDocument(doc);
+      } else {
+        await DatabaseHelper.instance.insertDocument(doc);
+      }
+
       widget.onDocumentAdded();
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Encryption Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -107,7 +152,9 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Secure New Document',
+                widget.documentToEdit != null
+                    ? 'Edit Secure File'
+                    : 'Secure New File',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -117,21 +164,29 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
-                  labelText: 'Document Title (e.g. My US Visa)',
+                  labelText: 'File Title (e.g. My US Visa)',
                 ),
                 validator: (val) =>
                     val == null || val.trim().isEmpty ? 'Title required' : null,
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                value: _selectedType,
-                decoration: const InputDecoration(labelText: 'Document Type'),
-                items: _types
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedType = val!),
-              ),
+              _isLoadingCategories
+                  ? const Center(child: CircularProgressIndicator())
+                  : DropdownButtonFormField<int>(
+                      value: _selectedCategoryId,
+                      decoration: const InputDecoration(labelText: 'File Type'),
+                      items: _documentCategories
+                          .map(
+                            (cat) => DropdownMenuItem<int>(
+                              value: cat.id,
+                              child: Text(cat.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedCategoryId = val),
+                    ),
               const SizedBox(height: 16),
 
               TextFormField(
@@ -143,7 +198,6 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Date Selector (Optional)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -157,25 +211,37 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
               ),
               const Divider(),
 
-              // File Selector (Optional)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  _selectedFile == null
-                      ? 'No Attached File'
-                      : 'File Selected ✓',
+                  _selectedFile != null
+                      ? 'New File Selected ✓'
+                      : (_existingEncryptedPath != null
+                            ? 'File already encrypted ✓'
+                            : 'No Attached File'),
                 ),
                 subtitle: Text(
-                  _selectedFile == null
-                      ? 'Optional: Add image/PDF to encrypt'
-                      : 'Ready to be encrypted with AES-256',
+                  _selectedFile != null
+                      ? 'Ready to be encrypted with AES-256'
+                      : (_existingEncryptedPath != null
+                            ? 'Tap to replace existing file'
+                            : 'Optional: Add image/PDF to encrypt'),
                   style: TextStyle(
-                    color: _selectedFile == null ? Colors.grey : Colors.green,
+                    color:
+                        (_selectedFile != null ||
+                            _existingEncryptedPath != null)
+                        ? Colors.green
+                        : Colors.grey,
                   ),
                 ),
                 trailing: Icon(
-                  _selectedFile == null ? Icons.attach_file : Icons.gpp_good,
-                  color: _selectedFile == null ? null : Colors.green,
+                  (_selectedFile != null || _existingEncryptedPath != null)
+                      ? Icons.gpp_good
+                      : Icons.attach_file,
+                  color:
+                      (_selectedFile != null || _existingEncryptedPath != null)
+                      ? Colors.green
+                      : null,
                 ),
                 onTap: _pickFile,
               ),
@@ -188,7 +254,11 @@ class _AddDocumentSheetState extends State<AddDocumentSheet> {
                 ),
                 child: _isSaving
                     ? const CircularProgressIndicator()
-                    : const Text('Secure & Save Data'),
+                    : Text(
+                        widget.documentToEdit != null
+                            ? 'Update Data'
+                            : 'Secure & Save Data',
+                      ),
               ),
             ],
           ),

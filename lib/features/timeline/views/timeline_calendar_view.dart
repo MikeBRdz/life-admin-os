@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:nexus/core/db/database_helper.dart';
-import 'package:nexus/core/models/payment.dart';
-import 'package:nexus/core/utils/icon_registry.dart';
-import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
+import 'package:nexus/core/models/timeline_event.dart';
+import 'package:nexus/core/utils/timeline_engine.dart';
 import 'package:nexus/core/utils/payment_engine.dart';
+import 'package:nexus/core/models/payment.dart';
 import 'package:nexus/core/utils/payment_ui_helpers.dart';
+import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
 
 class TimelineCalendarView extends StatefulWidget {
   const TimelineCalendarView({super.key});
@@ -14,7 +14,7 @@ class TimelineCalendarView extends StatefulWidget {
 }
 
 class _TimelineCalendarViewState extends State<TimelineCalendarView> {
-  late Future<List<Payment>> _paymentsFuture;
+  late Future<List<TimelineEvent>> _eventsFuture;
 
   DateTime _focusedMonth = DateTime.now();
   DateTime _selectedDate = DateTime(
@@ -26,28 +26,29 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
   @override
   void initState() {
     super.initState();
-    _loadPayments();
+    _loadEvents();
   }
 
-  void _loadPayments() {
+  void _loadEvents() {
     setState(() {
-      _paymentsFuture = DatabaseHelper.instance.getPayments();
+      _eventsFuture = TimelineEngine.getUnifiedTimeline();
     });
   }
 
-  Map<DateTime, List<Payment>> _groupPaymentsByDate(List<Payment> all) {
-    final Map<DateTime, List<Payment>> grouped = {};
-    for (var payment in all) {
+  Map<DateTime, List<TimelineEvent>> _groupEventsByDate(
+    List<TimelineEvent> all,
+  ) {
+    final Map<DateTime, List<TimelineEvent>> grouped = {};
+    for (var event in all) {
       final normalizedDate = DateTime(
-        payment.nextPaymentDate.year,
-        payment.nextPaymentDate.month,
-        payment.nextPaymentDate.day,
+        event.date.year,
+        event.date.month,
+        event.date.day,
       );
-
       if (!grouped.containsKey(normalizedDate)) {
         grouped[normalizedDate] = [];
       }
-      grouped[normalizedDate]!.add(payment);
+      grouped[normalizedDate]!.add(event);
     }
     return grouped;
   }
@@ -64,30 +65,24 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Payment>>(
-      future: _paymentsFuture,
+    return FutureBuilder<List<TimelineEvent>>(
+      future: _eventsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final allPayments = snapshot.data ?? [];
-        final projectedPayments = PaymentEngine.generateProjectedTimeline(
-          allPayments,
-        );
-        final groupedPayments = _groupPaymentsByDate(projectedPayments);
-
-        final selectedDayPayments = groupedPayments[_selectedDate] ?? [];
+        final allEvents = snapshot.data ?? [];
+        final groupedEvents = _groupEventsByDate(allEvents);
+        final selectedDayEvents = groupedEvents[_selectedDate] ?? [];
 
         return Column(
           children: [
             _buildCalendarHeader(),
             _buildDaysOfWeek(),
-            _buildCalendarGrid(groupedPayments),
-
+            _buildCalendarGrid(groupedEvents),
             const Divider(height: 1),
-
-            Expanded(child: _buildSelectedDatePayments(selectedDayPayments)),
+            Expanded(child: _buildSelectedDateEvents(selectedDayEvents)),
           ],
         );
       },
@@ -123,30 +118,31 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: days.map((day) {
-          return SizedBox(
-            width: 40,
-            child: Text(
-              day,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
+        children: days
+            .map(
+              (day) => SizedBox(
+                width: 40,
+                child: Text(
+                  day,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            )
+            .toList(),
       ),
     );
   }
 
-  Widget _buildCalendarGrid(Map<DateTime, List<Payment>> groupedPayments) {
+  Widget _buildCalendarGrid(Map<DateTime, List<TimelineEvent>> groupedEvents) {
     final daysInMonth = DateTime(
       _focusedMonth.year,
       _focusedMonth.month + 1,
       0,
     ).day;
-
     final firstDayWeekday = DateTime(
       _focusedMonth.year,
       _focusedMonth.month,
@@ -161,13 +157,11 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
         physics: const NeverScrollableScrollPhysics(),
         itemCount: daysInMonth + emptyCellsPrefix,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7, // 7 days a week
-          childAspectRatio: 1.0, // Perfect squares
+          crossAxisCount: 7,
+          childAspectRatio: 1.0,
         ),
         itemBuilder: (context, index) {
-          if (index < emptyCellsPrefix) {
-            return const SizedBox.shrink();
-          }
+          if (index < emptyCellsPrefix) return const SizedBox.shrink();
 
           final dayNumber = index - emptyCellsPrefix + 1;
           final cellDate = DateTime(
@@ -184,16 +178,12 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
                 DateTime.now().day,
               );
 
-          final hasPayments = groupedPayments.containsKey(cellDate);
+          final hasEvents = groupedEvents.containsKey(cellDate);
           final hasUrgent =
-              hasPayments && groupedPayments[cellDate]!.any((p) => p.isUrgent);
+              hasEvents && groupedEvents[cellDate]!.any((e) => e.isUrgent);
 
           return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDate = cellDate;
-              });
-            },
+            onTap: () => setState(() => _selectedDate = cellDate),
             child: Container(
               margin: const EdgeInsets.all(4.0),
               decoration: BoxDecoration(
@@ -220,7 +210,7 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
                           : FontWeight.normal,
                     ),
                   ),
-                  if (hasPayments) ...[
+                  if (hasEvents) ...[
                     const SizedBox(height: 2),
                     Container(
                       width: 6,
@@ -244,61 +234,59 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
     );
   }
 
-  Widget _buildSelectedDatePayments(List<Payment> payments) {
-    if (payments.isEmpty) {
+  Widget _buildSelectedDateEvents(List<TimelineEvent> events) {
+    if (events.isEmpty) {
       return const Center(
         child: Text(
-          'No payments scheduled for this date.',
+          'No events scheduled for this date.',
           style: TextStyle(color: Colors.grey),
         ),
       );
     }
-
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: payments.length,
-      itemBuilder: (context, index) {
-        final payment = payments[index];
-        return _buildPaymentCard(context, payment);
-      },
+      itemCount: events.length,
+      itemBuilder: (context, index) => _buildEventCard(context, events[index]),
     );
   }
 
-  Widget _buildPaymentCard(BuildContext context, Payment payment) {
+  Widget _buildEventCard(BuildContext context, TimelineEvent event) {
     return GestureDetector(
       onTap: () async {
-        final result = await showModalBottomSheet<bool>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (context) => AddPaymentSheet(paymentToEdit: payment),
-        );
-
-        if (result == true) {
-          _loadPayments();
+        if (event.eventType == 'Payment') {
+          final result = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) =>
+                AddPaymentSheet(paymentToEdit: event.originalItem as Payment),
+          );
+          if (result == true) _loadEvents();
         }
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: event.eventType == 'Document'
+              ? BorderSide(color: event.color, width: 1)
+              : BorderSide.none,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              buildAppIcon(
-                payment.iconKey,
-                color: Theme.of(context).colorScheme.primary,
-                size: 24,
-              ),
+              event.iconWidget,
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      payment.title,
+                      event.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -307,23 +295,25 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    if (payment.isUrgent)
+                    if (event.isUrgent)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
+                          color: event.color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: Colors.red.withOpacity(0.5),
+                            color: event.color.withOpacity(0.5),
                           ),
                         ),
-                        child: const Text(
-                          'Priority',
+                        child: Text(
+                          event.eventType == 'Document'
+                              ? 'Expiring'
+                              : 'Priority',
                           style: TextStyle(
-                            color: Colors.red,
+                            color: event.color,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -332,36 +322,40 @@ class _TimelineCalendarViewState extends State<TimelineCalendarView> {
                   ],
                 ),
               ),
-              Text(
-                '\$${payment.amount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-
-              const SizedBox(width: 8),
-              payment.isAutoPay
-                  ? const Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: Icon(
-                        Icons.autorenew,
-                        color: Colors.grey,
-                        size: 24,
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(
-                        Icons.check_circle_outline,
-                        color: Colors.green,
-                        size: 28,
-                      ),
-                      onPressed: () => PaymentUIHelpers.markAsPaid(
-                        context,
-                        payment,
-                        _loadPayments,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    event.subtitle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: event.eventType == 'Payment' ? 16 : 12,
+                      color: event.eventType == 'Document' ? Colors.grey : null,
                     ),
+                  ),
+                  if (event.eventType == 'Payment') ...[
+                    const SizedBox(height: 8),
+                    (event.originalItem as Payment).isAutoPay
+                        ? const Icon(
+                            Icons.autorenew,
+                            color: Colors.grey,
+                            size: 20,
+                          )
+                        : InkWell(
+                            onTap: () => PaymentUIHelpers.markAsPaid(
+                              context,
+                              event.originalItem as Payment,
+                              _loadEvents,
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                              size: 24,
+                            ),
+                          ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),

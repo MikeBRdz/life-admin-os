@@ -22,12 +22,7 @@ class _AddPaymentSheetState extends State<AddPaymentSheet> {
   bool _isUrgent = false;
   bool _isAutoPay = true;
 
-  final List<String> _frequencies = [
-    'Daily',
-    'Weekly',
-    'Monthly',
-    'Annually',
-  ];
+  final List<String> _frequencies = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
   late String _selectedIconKey = appIcons.keys.first;
 

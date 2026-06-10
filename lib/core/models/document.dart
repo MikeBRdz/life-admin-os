@@ -1,7 +1,8 @@
 class Document {
   final int? id;
   final String title;
-  final String documentType;
+  final int categoryId;
+  final String? categoryName;
   final String? encryptedFilePath;
   final DateTime? expirationDate;
   final String? notes;
@@ -9,7 +10,8 @@ class Document {
   Document({
     this.id,
     required this.title,
-    required this.documentType,
+    required this.categoryId,
+    this.categoryName,
     this.encryptedFilePath,
     this.expirationDate,
     this.notes,
@@ -19,7 +21,7 @@ class Document {
     return {
       'id': id,
       'title': title,
-      'documentType': documentType,
+      'categoryId': categoryId,
       'encryptedFilePath': encryptedFilePath,
       'expirationDate': expirationDate?.toIso8601String(),
       'notes': notes,
@@ -30,7 +32,10 @@ class Document {
     return Document(
       id: map['id'] as int?,
       title: map['title'] as String,
-      documentType: map['documentType'] as String,
+      categoryId: map['categoryId'] as int,
+      categoryName: map.containsKey('categoryName')
+          ? map['categoryName'] as String
+          : null,
       encryptedFilePath: map['encryptedFilePath'] as String?,
       expirationDate: map['expirationDate'] != null
           ? DateTime.parse(map['expirationDate'] as String)

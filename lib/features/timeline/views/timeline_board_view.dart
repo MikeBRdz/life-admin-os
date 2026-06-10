@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:nexus/core/db/database_helper.dart';
-import 'package:nexus/core/models/payment.dart';
-import 'package:nexus/core/utils/icon_registry.dart';
-import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
+import 'package:nexus/core/models/timeline_event.dart';
+import 'package:nexus/core/utils/timeline_engine.dart';
 import 'package:nexus/core/utils/payment_engine.dart';
+import 'package:nexus/core/models/payment.dart';
+import 'package:nexus/core/utils/payment_ui_helpers.dart';
+import 'package:nexus/features/recurring_payments/add_payment_sheet.dart';
 
 class TimelineBoardView extends StatefulWidget {
   const TimelineBoardView({super.key});
@@ -13,39 +14,38 @@ class TimelineBoardView extends StatefulWidget {
 }
 
 class _TimelineBoardViewState extends State<TimelineBoardView> {
-  late Future<List<Payment>> _paymentsFuture;
+  late Future<List<TimelineEvent>> _eventsFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadPayments();
+    _loadEvents();
   }
 
-  void _loadPayments() {
+  void _loadEvents() {
     setState(() {
-      _paymentsFuture = DatabaseHelper.instance.getPayments();
+      _eventsFuture = TimelineEngine.getUnifiedTimeline();
     });
   }
 
-  List<Payment> _filterPaymentsByRange(
-    List<Payment> all,
+  List<TimelineEvent> _filterEventsByRange(
+    List<TimelineEvent> all,
     int startDays,
     int endDays,
   ) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    return all.where((payment) {
-      final paymentDate = DateTime(
-        payment.nextPaymentDate.year,
-        payment.nextPaymentDate.month,
-        payment.nextPaymentDate.day,
+    return all.where((event) {
+      final eventDate = DateTime(
+        event.date.year,
+        event.date.month,
+        event.date.day,
       );
-      final difference = paymentDate.difference(today).inDays;
+      final difference = eventDate.difference(today).inDays;
       if (endDays == -1) {
         return difference >= startDays;
       }
-
       return difference >= startDays && difference <= endDays;
     }).toList();
   }
@@ -55,25 +55,18 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
     final screenWidth = MediaQuery.of(context).size.width;
     final columnWidth = screenWidth * 0.85;
 
-    return FutureBuilder<List<Payment>>(
-      future: _paymentsFuture,
+    return FutureBuilder<List<TimelineEvent>>(
+      future: _eventsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading data: ${snapshot.error}'));
-        }
+        final allEvents = snapshot.data ?? [];
 
-        final allPayments = snapshot.data ?? [];
-        final projectedPayments = PaymentEngine.generateProjectedTimeline(
-          allPayments,
-        );
-
-        final thisWeek = _filterPaymentsByRange(projectedPayments, 0, 7);
-        final thisMonth = _filterPaymentsByRange(projectedPayments, 8, 30);
-        final next = _filterPaymentsByRange(projectedPayments, 31, -1);
+        final thisWeek = _filterEventsByRange(allEvents, 0, 7);
+        final thisMonth = _filterEventsByRange(allEvents, 8, 30);
+        final next = _filterEventsByRange(allEvents, 31, -1);
 
         return ListView(
           scrollDirection: Axis.horizontal,
@@ -91,7 +84,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
 
   Widget _buildKanbanColumn(
     String title,
-    List<Payment> payments,
+    List<TimelineEvent> events,
     double width,
   ) {
     return Container(
@@ -130,7 +123,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${payments.length}',
+                    '${events.length}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -141,7 +134,7 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
             ),
           ),
           Expanded(
-            child: payments.isEmpty
+            child: events.isEmpty
                 ? const Center(
                     child: Text(
                       'No pending items',
@@ -150,10 +143,9 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    itemCount: payments.length,
+                    itemCount: events.length,
                     itemBuilder: (context, index) {
-                      final payment = payments[index];
-                      return _buildKanbanCard(context, payment);
+                      return _buildKanbanCard(context, events[index]);
                     },
                   ),
           ),
@@ -162,53 +154,53 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
     );
   }
 
-  Widget _buildKanbanCard(BuildContext context, Payment payment) {
+  Widget _buildKanbanCard(BuildContext context, TimelineEvent event) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final paymentDate = DateTime(
-      payment.nextPaymentDate.year,
-      payment.nextPaymentDate.month,
-      payment.nextPaymentDate.day,
+    final eventDate = DateTime(
+      event.date.year,
+      event.date.month,
+      event.date.day,
     );
-    final daysLeft = paymentDate.difference(today).inDays;
+    final daysLeft = eventDate.difference(today).inDays;
 
     return GestureDetector(
       onTap: () async {
-        final result = await showModalBottomSheet<bool>(
-          context: context,
-          isScrollControlled: true,
-          useSafeArea: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (context) => AddPaymentSheet(paymentToEdit: payment),
-        );
-
-        if (result == true) {
-          _loadPayments();
+        if (event.eventType == 'Payment') {
+          final result = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) =>
+                AddPaymentSheet(paymentToEdit: event.originalItem as Payment),
+          );
+          if (result == true) _loadEvents();
         }
       },
       child: Card(
         elevation: 1,
         margin: const EdgeInsets.only(bottom: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: event.eventType == 'Document'
+              ? BorderSide(color: event.color, width: 1)
+              : BorderSide.none,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              buildAppIcon(
-                payment.iconKey,
-                color: Theme.of(context).colorScheme.primary,
-                size: 18,
-              ),
+              event.iconWidget,
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      payment.title,
+                      event.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -217,27 +209,22 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-
                     Row(
                       children: [
                         Text(
                           daysLeft == 0
-                              ? 'Pay today'
+                              ? 'Today'
                               : (daysLeft < 0
-                                    ? (payment.isAutoPay
-                                          ? 'Auto-paid ✓'
-                                          : 'Overdue')
-                                    : 'In $daysLeft days | ${PaymentEngine.getMonthName(payment.nextPaymentDate.month)} ${payment.nextPaymentDate.day}'),
+                                    ? 'Overdue'
+                                    : 'In $daysLeft days'),
                           style: TextStyle(
-                            color: daysLeft < 0
-                                ? (payment.isAutoPay
-                                      ? Colors.green
-                                      : Colors.red)
+                            color: daysLeft <= 0
+                                ? Colors.red
                                 : Colors.grey[600],
                             fontSize: 12,
                           ),
                         ),
-                        if (payment.isUrgent) ...[
+                        if (event.isUrgent) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -245,16 +232,18 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
+                              color: event.color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: Colors.red.withOpacity(0.3),
+                                color: event.color.withOpacity(0.3),
                               ),
                             ),
-                            child: const Text(
-                              'Priority',
+                            child: Text(
+                              event.eventType == 'Document'
+                                  ? 'Expiring'
+                                  : 'Priority',
                               style: TextStyle(
-                                color: Colors.red,
+                                color: event.color,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -267,10 +256,11 @@ class _TimelineBoardViewState extends State<TimelineBoardView> {
                 ),
               ),
               Text(
-                '\$${payment.amount.toStringAsFixed(0)}',
-                style: const TextStyle(
+                event.subtitle,
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: event.eventType == 'Payment' ? 14 : 10,
+                  color: event.eventType == 'Document' ? Colors.grey : null,
                 ),
               ),
             ],
